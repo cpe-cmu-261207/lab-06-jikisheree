@@ -1,83 +1,61 @@
-import axios from "axios"
-import { useEffect, useState } from "react"
-import { useLocation } from "react-router-dom";
+import axios from "axios";
+import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom"
 
-type DataType = {
-  bpi: any
-  disclaimmer: string
-  time: {
-    updated: string
-    updatedISO: string
-  }
-}
 
 const Result = () => {
-  const [data, setData] = useState<DataType | null>(null)
-  const [loading, setLoading] = useState<boolean>(true)
-  const [error, setError] = useState<boolean>(false)
-  const query = new URLSearchParams(useLocation().search)
-  const startDate = query.get('start')
-  const endDate = query.get('end')
+    let query = new URLSearchParams(useLocation().search);
+    const [dataSet, setData] = useState<Record<string, number>>();
+    const [loadStatus, setLoadSta] = useState<boolean>(true);
+    const [loadErr, setLoadErr] = useState<boolean>(false);
 
-  const fetchData = async () => {
-    try {
-      const resp = await axios.get<DataType>(`https://api.coindesk.com/v1/bpi/historical/close.json?currency=THB&start=${startDate}&end=${endDate}`)
-      setData(resp.data)
-      setLoading(false)
-      setError(false)
+    const fetchData = async () => {
+        try {
+            const resp = await axios.get(`https://api.coindesk.com/v1/bpi/historical/close.json?currency=THB&start=${query.get("start")}&end=${query.get("end")}`);
+            setData(resp.data.bpi);
+            console.log(dataSet);
+        }
+        catch (err) {
+            setLoadErr(true);
+        }
+        setLoadSta(false);
     }
-    catch (err) {
-      console.log(err)
-      setError(true)
+
+    useEffect(() => {
+        fetchData();
+    }, [])
+
+    const liMaker = (a: string, b: number) => {
+        return (
+            <li className='text-xl' key='{(new Date()).getTime()}'>{a} - {b.toLocaleString()} THB</li>
+        )
     }
-  }
 
-  const list = () => {
-
-    const temp = []
-    for (const [key, value] of Object.entries(data?.bpi)) {
-      temp.push(key + ' - ' + value)
+    const render = () => {
+        if (loadStatus)
+            return <p className='text-2xl'>Loading ...</p>
+        else if (loadErr)
+            return <p className='text-2xl text-red-500'>There was an error. Please try again later.</p>
+        else {
+            if (dataSet != null) {
+                return (
+                    <div>
+                        <p className='text-xl font-semibold'> ( From {query.get("start")} To {query.get("end")} )</p>
+                        <ul>
+                            {Object.entries(dataSet).map(x => liMaker(x[0], x[1]))}
+                        </ul>
+                    </div>
+                )
+            }
+        }
     }
-    const final = temp.map(x => <li>{x}</li>)
-    return final
-  }
 
-  useEffect(() => {
-    fetchData()
-  }, [])
-
-  const render = () => {
-    if (error) {
-      return (
+    return (
         <div className='text-center space-y-3'>
-          <p className='text-2xl font-semibold'>There was an error. Please try again later.</p>
+            <p className='text-2xl font-semibold'>Historical price</p>
+            {render()}
         </div>
-      )
-    }
-    else if (loading) {
-      return (
-        <div className='text-center space-y-3'>
-          <p className='text-2xl font-semibold'>Loading ...</p>
-        </div>
-      )
-    }
-    else {
-      return (
-        <div className='text-center space-y-3'>
-          <p className='text-2xl font-semibold'>Historical price</p>
-          <p className='text-xl font-semibold'> ( From {startDate} To {endDate})</p>
-          <ul className='text-xl'>
-            {list()}
-          </ul>
-        </div>
-      )
-    }
-  }
-  return (
-    <div>
-      {render()}
-    </div>
-  )
+    )
 }
 
 export default Result
